@@ -27,44 +27,6 @@ def dataloader():
 
 	return x_train , y_train , x_test , y_test
 
-def mask_data(x_train, x_test):
-	mask_train, mask_test = [], []
-	for i in range(len(x_train)):
-		label=x_train[i][D-1]
-		x_train[i][D-1]=0
-		mask_train.append((x_train[i].copy(),label))
-		x_train[i][D-1]=label
-		label=x_train[i][0]
-		x_train[i][0]=0
-		mask_train.append((x_train[i].copy(),label))
-		x_train[i][0]=label
-
-	for i in range(len(x_test)):
-		label=x_test[i][D-1]
-		x_test[i][D-1]=0
-		mask_test.append((x_test[i].copy(),label))
-		x_test[i][D-1]=label
-		label=x_test[i][0]
-		x_test[i][0]=0
-		mask_test.append((x_test[i].copy(),label))
-		x_test[i][0]=label
-
-	random.shuffle(mask_train)
-	random.shuffle(mask_test)
-
-	mask_x_train , mask_y_train , mask_x_test , mask_y_test=[],[],[],[]
-
-	for i in range(len(mask_train)):
-		mask_x_train.append(mask_train[i][0])
-		mask_y_train.append(mask_train[i][1])
-
-	for i in range(len(mask_test)):
-		mask_x_test.append(mask_test[i][0])
-		mask_y_test.append(mask_test[i][1])
-
-	return mask_x_train, mask_x_test, mask_y_train, mask_y_test
-
-
 class Feedforward(torch.nn.Module):
     def __init__(self, input_size, hidden_size):
         super(Feedforward, self).__init__()
@@ -86,17 +48,6 @@ class Feedforward(torch.nn.Module):
         output = self.fc4(relu)
         return output
 
-class G_network(torch.nn.Module):
-    def __init__(self, input_size, output_size):
-        super(G_network, self).__init__()
-        self.input_size = input_size
-        self.output_size  = output_size
-        self.fc = torch.nn.Linear(self.input_size, self.output_size)
-
-    def forward(self, x):
-        output = self.fc(x)
-        return output
-
 class F_network(torch.nn.Module):
     def __init__(self, input_size, output_size):
         super(F_network, self).__init__()
@@ -111,19 +62,10 @@ class F_network(torch.nn.Module):
 def main():
 	x_train , y_train , x_test , y_test=dataloader()
 
-	max_num=10000
+	max_num=100
 	x_train=x_train[0:max_num]
 	y_train=y_train[0:max_num]
 	print(len(x_train),len(x_test))
-
-
-	mask_x_train, mask_x_test, mask_y_train, mask_y_test=mask_data(x_train, x_test)
-	
-	mask_x_train = torch.FloatTensor(mask_x_train)
-	mask_y_train = torch.FloatTensor(mask_y_train)
-	mask_x_test = torch.FloatTensor(mask_x_test)
-	mask_y_test = torch.FloatTensor(mask_y_test)
-
 
 	x_train = torch.FloatTensor(x_train)
 	y_train = torch.FloatTensor(y_train)
@@ -131,51 +73,16 @@ def main():
 	y_test = torch.FloatTensor(y_test)
 
 	model = Feedforward(D,hidden_H)
-	g_model = G_network(H,1)
 	f_model = F_network(H,1)
 	criterion = torch.nn.MSELoss()
-	params = list(model.parameters()) + list(g_model.parameters())
-	optimizer = torch.optim.SGD(params, lr=0.02, momentum=0.9)
+	params2 = list(f_model.parameters()) + list(model.parameters())
+	optimizer2 = torch.optim.SGD(params2, lr=0.02, momentum=0.9)
 	
-
-	model.eval()
-	g_model.eval()
-	y_pred = g_model(model(mask_x_test))
-	loss = criterion(y_pred.squeeze(), mask_y_test)
-	print('Representation loss: {}'.format(loss.item()))
-	
-	model.train()
-	g_model.train()
-	epoch = 20000
-	for epoch in range(epoch):
-		optimizer.zero_grad()
-		y_pred = g_model(model(mask_x_train))
-		loss = criterion(y_pred.squeeze(), mask_y_train)
-		if (epoch % 100) == 0:
-			print('Epoch {}: train loss: {}'.format(epoch, loss.item()))
-		loss.backward()
-		optimizer.step()
-		
-		if (epoch % 100) == 0:
-			model.eval()
-			g_model.eval()
-			y_pred = g_model(model(mask_x_test))
-			loss = criterion(y_pred.squeeze(), mask_y_test)
-			print('Representation loss: {}'.format(loss.item()))
-			model.train()
-			g_model.train()
-
 	model.eval()
 	f_model.eval()
 	y_pred = f_model(model(x_test))
 	loss = criterion(y_pred.squeeze(), y_test)
 	print('Classification loss: {}'.format(loss.item()))
-
-	params2 = list(f_model.parameters()) + list(model.parameters())
-	optimizer2 = torch.optim.SGD(params2, lr=0.02, momentum=0.9)
-
-	#for param in model.parameters():
-	#	param.requires_grad = False
 
 	model.train()
 	f_model.train()

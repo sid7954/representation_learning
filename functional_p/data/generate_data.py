@@ -8,7 +8,7 @@ N=1000
 D=10
 
 f=open("test.tsv","w+")
-random.seed(15)
+random.seed(10)
 for i in range(N):
 	a=random.uniform(-1,1)
 	f.write(str(a)+" ")
@@ -19,4 +19,5 @@ for i in range(N):
 		sq_sum=sq_sum+b*b
 	c=-a-sq_sum 	
 	f.write(str(c))	
-	f.write("\t"+str((-3*a) + (5*c) + sq_sum)+"\n")
+	#f.write("\t"+str((-3*a) + (5*c) + sq_sum)+"\n")
+	f.write("\t"+str(sq_sum)+"\n")
