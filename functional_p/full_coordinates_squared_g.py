@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import random
+import numpy as np
 
 D=10
 hidden_H=50
@@ -175,7 +176,7 @@ def main():
 	print('Classification loss: {}'.format(loss.item()))
 
 	params2 = list(f_model.parameters()) + list(model.parameters())
-	optimizer2 = torch.optim.SGD(params2, lr=0.02, momentum=0.9)
+	optimizer2 = torch.optim.SGD(params2, lr=0.002, momentum=0.9)
 
 	#for param in model.parameters():
 	#	param.requires_grad = False

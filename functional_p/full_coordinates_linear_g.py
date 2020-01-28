@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import random
+import numpy as np
 
 D=10
 hidden_H=50
@@ -111,7 +112,7 @@ class F_network(torch.nn.Module):
 def main():
 	x_train , y_train , x_test , y_test=dataloader()
 
-	max_num=10000
+	max_num=1000
 	x_train=x_train[0:max_num]
 	y_train=y_train[0:max_num]
 	print(len(x_train),len(x_test))
@@ -130,73 +131,93 @@ def main():
 	x_test = torch.FloatTensor(x_test)
 	y_test = torch.FloatTensor(y_test)
 
-	model = Feedforward(D,hidden_H)
-	g_model = G_network(H,1)
-	f_model = F_network(H,1)
-	criterion = torch.nn.MSELoss()
-	params = list(model.parameters()) + list(g_model.parameters())
-	optimizer = torch.optim.SGD(params, lr=0.02, momentum=0.9)
-	
+	all_weights=np.zeros([50,3253])
+	all_losses=[]
 
-	model.eval()
-	g_model.eval()
-	y_pred = g_model(model(mask_x_test))
-	loss = criterion(y_pred.squeeze(), mask_y_test)
-	print('Representation loss: {}'.format(loss.item()))
-	
-	model.train()
-	g_model.train()
-	epoch = 20000
-	for epoch in range(epoch):
-		optimizer.zero_grad()
-		y_pred = g_model(model(mask_x_train))
-		loss = criterion(y_pred.squeeze(), mask_y_train)
-		if (epoch % 100) == 0:
-			print('Epoch {}: train loss: {}'.format(epoch, loss.item()))
-		loss.backward()
-		optimizer.step()
+	for iter in range(50):
+		print(iter)
+		random.seed(iter)
+		model = Feedforward(D,hidden_H)
+		g_model = G_network(H,1)
+		f_model = F_network(H,1)
+		criterion = torch.nn.MSELoss()
+		params = list(model.parameters()) + list(g_model.parameters())
+		optimizer = torch.optim.SGD(params, lr=0.02, momentum=0.9)
 		
-		if (epoch % 100) == 0:
-			model.eval()
-			g_model.eval()
-			y_pred = g_model(model(mask_x_test))
-			loss = criterion(y_pred.squeeze(), mask_y_test)
-			print('Representation loss: {}'.format(loss.item()))
-			model.train()
-			g_model.train()
-
-	model.eval()
-	f_model.eval()
-	y_pred = f_model(model(x_test))
-	loss = criterion(y_pred.squeeze(), y_test)
-	print('Classification loss: {}'.format(loss.item()))
-
-	params2 = list(f_model.parameters()) + list(model.parameters())
-	optimizer2 = torch.optim.SGD(params2, lr=0.02, momentum=0.9)
-
-	#for param in model.parameters():
-	#	param.requires_grad = False
-
-	model.train()
-	f_model.train()
-	epoch = 20000
-	for epoch in range(epoch):
-		optimizer2.zero_grad()
-		y_pred = f_model(model(x_train))
-		loss = criterion(y_pred.squeeze(), y_train)
-		if (epoch % 100) == 0:
-			print('Epoch {}: train loss: {}'.format(epoch, loss.item()))
-		loss.backward()
-		optimizer2.step()
+		# model.eval()
+		# g_model.eval()
+		# y_pred = g_model(model(mask_x_test))
+		# loss = criterion(y_pred.squeeze(), mask_y_test)
+		# print('Representation loss: {}'.format(loss.item()))
 		
-		if (epoch % 100) == 0:
-			model.eval()
-			f_model.eval()
-			y_pred = f_model(model(x_test))
-			loss = criterion(y_pred.squeeze(), y_test)
-			print('Classification loss: {}'.format(loss.item()))
-			model.train()
-			f_model.train()
+		model.train()
+		g_model.train()
+		epoch = 20000
+		for epoch in range(epoch):
+			optimizer.zero_grad()
+			y_pred = g_model(model(mask_x_train))
+			loss = criterion(y_pred.squeeze(), mask_y_train)
+			# if (epoch % 100) == 0:
+			# 	print('Epoch {}: train loss: {}'.format(epoch, loss.item()))
+			loss.backward()
+			optimizer.step()
+			
+			# if (epoch % 100) == 0:
+			# 	model.eval()
+			# 	g_model.eval()
+			# 	y_pred = g_model(model(mask_x_test))
+			# 	loss = criterion(y_pred.squeeze(), mask_y_test)
+			# 	print('Representation loss: {}'.format(loss.item()))
+			# 	model.train()
+			# 	g_model.train()
+
+		params2 = list(f_model.parameters()) + list(model.parameters())
+		optimizer2 = torch.optim.SGD(params2, lr=0.002, momentum=0.9)
+		#optimizer2 = torch.optim.Adam(params2, lr=0.0001)
+		#for param in model.parameters():
+		#	param.requires_grad = False
+
+		model.train()
+		f_model.train()
+		epoch = 20000
+		for epoch in range(epoch):
+			optimizer2.zero_grad()
+			y_pred = f_model(model(x_train))
+			loss = criterion(y_pred.squeeze(), y_train)
+			# if (epoch % 100) == 0:
+			# 	print('Epoch {}: train loss: {}'.format(epoch, loss.item()))
+			loss.backward()
+			optimizer2.step()
+			
+			# if (epoch % 100) == 0:
+			# 	model.eval()
+			# 	f_model.eval()
+			# 	y_pred = f_model(model(x_test))
+			# 	loss = criterion(y_pred.squeeze(), y_test)
+			# 	print('Classification loss: {}'.format(loss.item()))
+			# 	model.train()
+			# 	f_model.train()
+
+		model.eval()
+		f_model.eval()
+		y_pred = f_model(model(x_test))
+		loss = criterion(y_pred.squeeze(), y_test)
+		#print('Classification loss: {}'.format(loss.item()))
+		all_losses.append(loss)
+
+		data_dict = model.state_dict()
+		weights=[]
+		weights.extend(data_dict['fc1.weight'].numpy().flatten())
+		weights.extend(data_dict['fc1.bias'].numpy().flatten())
+		weights.extend(data_dict['fc2.weight'].numpy().flatten())
+		weights.extend(data_dict['fc2.bias'].numpy().flatten())
+		weights.extend(data_dict['fc4.weight'].numpy().flatten())
+		weights.extend(data_dict['fc4.bias'].numpy().flatten())
+		all_weights[iter]=weights
+
+	np.save('linear.npy',all_weights)
+	all_losses= np.asarray(all_losses)
+	np.savetxt('linear_loss.csv', all_losses, delimiter='\n')
 
 if __name__ == "__main__":
 	main()	
